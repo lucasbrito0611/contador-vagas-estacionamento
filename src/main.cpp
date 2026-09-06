@@ -16,44 +16,46 @@ const int ledsVagas[4][3] = {
   {13, 25, 33},
   {32, 26, 14},
   {23, 19, 18},
-  {17, 4, 2} 
+  {17, 4, 2}
 };
 
 int trig_vagas[] = {12, 27, 5, 16};
-
 int echo_vagas[] = {39, 36, 34, 35};
 
 byte simboloLivre[8] = {
-    B00000, B00001, B00010, B10100, B01000, B00000, B00000, B00000};
+  B00000, B00001, B00010, B10100, B01000, B00000, B00000, B00000
+};
+
 byte simboloOcupada[8] = {
-    B10001, B01010, B00100, B01010, B10001, B00000, B00000, B00000};
+  B10001, B01010, B00100, B01010, B10001, B00000, B00000, B00000
+};
+
 byte simboloPcd[8] = {
-    B01000, B00000, B01100, B01000, B01110, B10011, B10010, B01100};
+  B01000, B00000, B01100, B01000, B01110, B10011, B10010, B01100
+};
+
 byte simboloIdoso[8] = {
-    B00100, B00000, B01100, B01011, B01001, B01101, B10101, B10101};
+  B00100, B00000, B01100, B01011, B01001, B01101, B10101, B10101
+};
 
 void acenderLed(int vaga, int cor) {
-  digitalWrite(ledsVagas[vaga][0], LOW);
-  digitalWrite(ledsVagas[vaga][1], LOW);
-  digitalWrite(ledsVagas[vaga][2], LOW);
-
-  if (cor == COR_VERMELHA) {
-    digitalWrite(ledsVagas[vaga][0], HIGH); 
-  } 
-  else if (cor == COR_VERDE) {
-    digitalWrite(ledsVagas[vaga][1], HIGH); 
-  } 
-  else if (cor == COR_AZUL) {
-    digitalWrite(ledsVagas[vaga][2], HIGH); 
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(ledsVagas[vaga][i], LOW);
   }
-  else if (cor == COR_AMARELA) {
-    digitalWrite(ledsVagas[vaga][0], HIGH); 
-    digitalWrite(ledsVagas[vaga][1], HIGH); 
+
+  if (cor == COR_AMARELA) {
+    digitalWrite(ledsVagas[vaga][0], HIGH);
+    digitalWrite(ledsVagas[vaga][1], HIGH);
+  } else {
+    for (int i = 0; i < 3; i++) {
+      if (i == cor) {
+        digitalWrite(ledsVagas[vaga][i], HIGH);
+      }
+    }
   }
 }
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
 
   display.init();
@@ -69,6 +71,7 @@ void setup()
   display.print("    || ");
   display.write(byte(1));
   display.print("   ");
+  
   display.setCursor(0, 1);
   display.print("  ");
   display.write(byte(3));
@@ -76,8 +79,7 @@ void setup()
   display.write(byte(2));
   display.print("   ");
 
-  for (int i = 0; i < 4; i++)
-  {
+  for (int i = 0; i < 4; i++) {
     pinMode(trig_vagas[i], OUTPUT);
     pinMode(echo_vagas[i], INPUT);
 
@@ -88,32 +90,30 @@ void setup()
   }
 }
 
-void loop()
-{
+void loop() {
   int vagasComunsOcupadas = 0;
   int vagasIdosoOcupadas = 0;
   int vagasPcdOcupadas = 0;
 
-  for (int i = 0; i < 4; i++)
-  {
+  for (int i = 0; i < 4; i++) {
     digitalWrite(trig_vagas[i], LOW);
     delayMicroseconds(2);
     digitalWrite(trig_vagas[i], HIGH);
     delayMicroseconds(10);
     digitalWrite(trig_vagas[i], LOW);
 
-    long duration = pulseIn(echo_vagas[i], HIGH, 30000); 
+    long duration = pulseIn(echo_vagas[i], HIGH, 30000);
 
-    float distance = duration == 0 ? 999 : duration * 0.034 / 2; 
+    float distance = duration == 0 ? 999 : duration * 0.034 / 2;
 
     bool ocupada = distance < 336;
 
     if (ocupada) {
       acenderLed(i, COR_VERMELHA);
-      
-      if (i == 0) { 
+
+      if (i == 0) {
         vagasPcdOcupadas++;
-      } else if (i == 3) { 
+      } else if (i == 3) {
         vagasIdosoOcupadas++;
       } else {
         vagasComunsOcupadas++;
@@ -137,18 +137,26 @@ void loop()
   int vagasOcupadas = vagasComunsOcupadas + vagasIdosoOcupadas + vagasPcdOcupadas;
 
   display.setCursor(4, 0);
-  if (vagasLivres < 10) display.print(' ');
+  if (vagasLivres < 10) {
+    display.print(' ');
+  }
   display.print(vagasLivres);
 
   display.setCursor(12, 0);
-  if (vagasOcupadas < 10) display.print(' ');
+  if (vagasOcupadas < 10) {
+    display.print(' ');
+  }
   display.print(vagasOcupadas);
 
   display.setCursor(4, 1);
-  if (vagasPcdLivres < 10) display.print(' ');
+  if (vagasPcdLivres < 10) {
+    display.print(' ');
+  }
   display.print(vagasPcdLivres);
 
   display.setCursor(12, 1);
-  if (vagasIdosoLivres < 10) display.print(' ');
+  if (vagasIdosoLivres < 10) {
+    display.print(' ');
+  }
   display.print(vagasIdosoLivres);
 }
