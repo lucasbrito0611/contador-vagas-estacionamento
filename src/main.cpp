@@ -7,51 +7,50 @@ LiquidCrystal_I2C display(0x27, 16, 2);
 #define numVagasIdoso 1
 #define numVagasPcd 1
 
-// Pinos TRIG (disparo do pulso sonoro)
+#define COR_VERMELHA 0
+#define COR_VERDE 1
+#define COR_AZUL 2
+#define COR_AMARELA 3
+
+const int ledsVagas[4][3] = {
+  {13, 25, 33},
+  {32, 26, 14},
+  {23, 19, 18},
+  {17, 4, 2} 
+};
+
 int trig_vagas[] = {12, 27, 5, 16};
 
-// Pinos ECHO (recepção do pulso de retorno)
-int echo_vagas[] = {14, 26, 17, 4};
+int echo_vagas[] = {39, 36, 34, 35};
 
 byte simboloLivre[8] = {
-    B00000,
-    B00001,
-    B00010,
-    B10100,
-    B01000,
-    B00000,
-    B00000,
-    B00000};
-
+    B00000, B00001, B00010, B10100, B01000, B00000, B00000, B00000};
 byte simboloOcupada[8] = {
-    B10001,
-    B01010,
-    B00100,
-    B01010,
-    B10001,
-    B00000,
-    B00000,
-    B00000};
-
+    B10001, B01010, B00100, B01010, B10001, B00000, B00000, B00000};
 byte simboloPcd[8] = {
-    B01000,
-    B00000,
-    B01100,
-    B01000,
-    B01110,
-    B10011,
-    B10010,
-    B01100};
-
+    B01000, B00000, B01100, B01000, B01110, B10011, B10010, B01100};
 byte simboloIdoso[8] = {
-    B00100,
-    B00000,
-    B01100,
-    B01011,
-    B01001,
-    B01101,
-    B10101,
-    B10101};
+    B00100, B00000, B01100, B01011, B01001, B01101, B10101, B10101};
+
+void acenderLed(int vaga, int cor) {
+  digitalWrite(ledsVagas[vaga][0], LOW);
+  digitalWrite(ledsVagas[vaga][1], LOW);
+  digitalWrite(ledsVagas[vaga][2], LOW);
+
+  if (cor == COR_VERMELHA) {
+    digitalWrite(ledsVagas[vaga][0], HIGH); 
+  } 
+  else if (cor == COR_VERDE) {
+    digitalWrite(ledsVagas[vaga][1], HIGH); 
+  } 
+  else if (cor == COR_AZUL) {
+    digitalWrite(ledsVagas[vaga][2], HIGH); 
+  }
+  else if (cor == COR_AMARELA) {
+    digitalWrite(ledsVagas[vaga][0], HIGH); 
+    digitalWrite(ledsVagas[vaga][1], HIGH); 
+  }
+}
 
 void setup()
 {
@@ -77,12 +76,15 @@ void setup()
   display.write(byte(2));
   display.print("   ");
 
-  // - TRIG como SAÍDA (o ESP32 envia o sinal)
-  // - ECHO como ENTRADA (o ESP32 lê o retorno do sinal)
   for (int i = 0; i < 4; i++)
   {
     pinMode(trig_vagas[i], OUTPUT);
     pinMode(echo_vagas[i], INPUT);
+
+    for (int canal = 0; canal < 3; canal++) {
+      pinMode(ledsVagas[i][canal], OUTPUT);
+      digitalWrite(ledsVagas[i][canal], LOW);
+    }
   }
 }
 
@@ -92,40 +94,41 @@ void loop()
   int vagasIdosoOcupadas = 0;
   int vagasPcdOcupadas = 0;
 
-  // Percorre cada uma das 4 vagas sequencialmente
   for (int i = 0; i < 4; i++)
   {
-    // Gera um pulso ultrassônico limpo de 10 microssegundos no pino TRIG
     digitalWrite(trig_vagas[i], LOW);
     delayMicroseconds(2);
     digitalWrite(trig_vagas[i], HIGH);
     delayMicroseconds(10);
     digitalWrite(trig_vagas[i], LOW);
 
-    // Mede quanto tempo (em microssegundos) o pino ECHO levou para receber o eco
-    long duration = pulseIn(echo_vagas[i], HIGH);
+    long duration = pulseIn(echo_vagas[i], HIGH, 30000); 
 
-    float distance = duration * 0.034 / 2; // Converte o tempo em distância (cm)
+    float distance = duration == 0 ? 999 : duration * 0.034 / 2; 
 
-    // Verifica se a vaga está ocupada ou livre
-    if (distance < 336)
-    {
-      if (i == 2)
-      {
-        vagasIdosoOcupadas++;
-      }
-      else if (i == 3)
-      {
+    bool ocupada = distance < 336;
+
+    if (ocupada) {
+      acenderLed(i, COR_VERMELHA);
+      
+      if (i == 0) { 
         vagasPcdOcupadas++;
-      }
-      else
-      {
+      } else if (i == 3) { 
+        vagasIdosoOcupadas++;
+      } else {
         vagasComunsOcupadas++;
+      }
+    } else {
+      if (i == 0) {
+        acenderLed(i, COR_AZUL);
+      } else if (i == 3) {
+        acenderLed(i, COR_AMARELA);
+      } else {
+        acenderLed(i, COR_VERDE);
       }
     }
 
-    // Intervalo de segurança entre a leitura de uma vaga e outra para evitar interferência acústica
-    delay(500);
+    delay(50);
   }
 
   int vagasLivres = numVagasComuns - vagasComunsOcupadas;
@@ -134,22 +137,18 @@ void loop()
   int vagasOcupadas = vagasComunsOcupadas + vagasIdosoOcupadas + vagasPcdOcupadas;
 
   display.setCursor(4, 0);
-  if (vagasLivres < 10)
-    display.print(' ');
+  if (vagasLivres < 10) display.print(' ');
   display.print(vagasLivres);
 
   display.setCursor(12, 0);
-  if (vagasOcupadas < 10)
-    display.print(' ');
+  if (vagasOcupadas < 10) display.print(' ');
   display.print(vagasOcupadas);
 
   display.setCursor(4, 1);
-  if (vagasPcdLivres < 10)
-    display.print(' ');
+  if (vagasPcdLivres < 10) display.print(' ');
   display.print(vagasPcdLivres);
 
   display.setCursor(12, 1);
-  if (vagasIdosoLivres < 10)
-    display.print(' ');
+  if (vagasIdosoLivres < 10) display.print(' ');
   display.print(vagasIdosoLivres);
 }
