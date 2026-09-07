@@ -13,14 +13,14 @@ LiquidCrystal_I2C display(0x27, 16, 2);
 #define COR_AMARELA 3
 
 const int ledsVagas[4][3] = {
-  {13, 25, 33},
-  {32, 26, 14},
+  {13, 12, 14},
+  {27, 26, 25},
   {23, 19, 18},
-  {17, 4, 2}
+  {16, 4, 15}
 };
 
-int trig_vagas[] = {12, 27, 5, 16};
-int echo_vagas[] = {39, 36, 34, 35};
+int trig_vagas[] = {33, 32, 5, 17};
+int echo_vagas[] = {35, 34, 36, 39};
 
 byte simboloLivre[8] = {
   B00000, B00001, B00010, B10100, B01000, B00000, B00000, B00000
