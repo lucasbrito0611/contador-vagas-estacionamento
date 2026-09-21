@@ -22,7 +22,7 @@ LiquidCrystal_I2C display(0x27, 16, 2);
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
 #define AIO_USERNAME    "lucasbrito06"
-#define AIO_KEY         "aio_zOOk031TkT7u5mWCwxABBNr9poxB"
+#define AIO_KEY         "aio_kxtE20zVYDHkvSGJoMGaJlJMckoU"
 
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
 WiFiClient client;
