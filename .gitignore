@@ -3,6 +3,7 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+/include/secrets.h
 
 # Visão computacional (Unidade 3)
 visao/.env
