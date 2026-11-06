@@ -1,0 +1,9 @@
+# Bibliotecas Python da parte de visão computacional.
+# Instalar com:  pip install -r requirements.txt
+# ATENÇÃO: o programa Tesseract NÃO é instalado por aqui (ver README.md, passo 4).
+
+opencv-python>=4.8      # abrir o vídeo e tratar as imagens (todos)
+ultralytics>=8.0        # rodar o YOLO (Pessoa B) - também instala o PyTorch (~1-2 GB)
+pytesseract>=0.3.10     # chamar o Tesseract pelo Python (Pessoa C)
+adafruit-io>=2.7        # publicar no Adafruit IO (Pessoa A)
+python-dotenv>=1.0      # ler usuário e chave do arquivo .env

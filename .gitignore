@@ -3,3 +3,13 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Visão computacional (Unidade 3)
+visao/.env
+visao/venv/
+visao/.venv/
+__pycache__/
+visao/modelos/*
+!visao/modelos/.gitkeep
+visao/videos/*
+!visao/videos/.gitkeep
