@@ -57,6 +57,9 @@ int vagasLivres = NUM_VAGAS;
 bool cancelaAberta = false;
 unsigned long cancelaFechaEm = 0;
 
+bool mensagemCancelaAtiva = false;
+unsigned long mensagemCancelaAte = 0;
+
 const int ledsVagas[NUM_VAGAS][3] = {
   {13, 12, 14},
   {27, 26, 25},
@@ -176,12 +179,27 @@ void publicarEstadoCancela(bool forcar = false) {
   }
 }
 
-void abrirCancela() {
+bool abrirCancela() {
+  if (!cancelaServo.attached()) {
+    return false;
+  }
+
   cancelaServo.write(CANCELA_ABERTA);
   cancelaAberta = true;
   cancelaFechaEm = millis() + TEMPO_CANCELA_ABERTA;
   Serial.println("Cancela aberta; será fechada em 10 segundos");
   publicarEstadoCancela();
+  return true;
+}
+
+void mostrarMensagemCancela(const char *linha1, const char *linha2) {
+  display.clear();
+  display.setCursor(0, 0);
+  display.print(linha1);
+  display.setCursor(0, 1);
+  display.print(linha2);
+  mensagemCancelaAtiva = true;
+  mensagemCancelaAte = millis() + TEMPO_CANCELA_ABERTA;
 }
 
 void fecharCancela() {
@@ -198,15 +216,19 @@ void ultimaPlacaCallback(char *data, uint16_t len) {
   Serial.print("Última placa recebida: ");
   Serial.println(data);
 
-  if (vagasLivres > 0) {
-    abrirCancela();
-  } else {
+  if (vagasLivres <= 0) {
     if (cancelaAberta) {
       cancelaServo.write(CANCELA_FECHADA);
       cancelaAberta = false;
       publicarEstadoCancela();
     }
+    mostrarMensagemCancela("Lotado", "Desculpe :(");
     Serial.println("Nenhuma vaga livre; cancela mantida fechada");
+  } else if (abrirCancela()) {
+    mostrarMensagemCancela(data, "Bem-vindo");
+  } else {
+    mostrarMensagemCancela("ERRO", "");
+    Serial.println("Erro ao abrir a cancela");
   }
 }
 
@@ -263,6 +285,23 @@ void acenderLed(int vaga, int cor) {
   }
 }
 
+void mostrarLegenda() {
+  display.clear();
+  display.setCursor(0, 0);
+  display.print("  ");
+  display.write(byte(0));
+  display.print("    || ");
+  display.write(byte(1));
+  display.print("   ");
+
+  display.setCursor(0, 1);
+  display.print("  ");
+  display.write(byte(3));
+  display.print("    || ");
+  display.write(byte(2));
+  display.print("   ");
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -285,19 +324,7 @@ void setup() {
   display.createChar(2, simboloIdoso);
   display.createChar(3, simboloPcd);
 
-  display.setCursor(0, 0);
-  display.print("  ");
-  display.write(byte(0));
-  display.print("    || ");
-  display.write(byte(1));
-  display.print("   ");
-  
-  display.setCursor(0, 1);
-  display.print("  ");
-  display.write(byte(3));
-  display.print("    || ");
-  display.write(byte(2));
-  display.print("   ");
+  mostrarLegenda();
 
   for (int i = 0; i < NUM_VAGAS; i++) {
     pinMode(trig_vagas[i], OUTPUT);
@@ -398,6 +425,15 @@ void loop() {
     publicarEstadoCancela();
   }
   fecharCancela();
+
+  if (mensagemCancelaAtiva && (long)(millis() - mensagemCancelaAte) < 0) {
+    return;
+  }
+
+  if (mensagemCancelaAtiva) {
+    mensagemCancelaAtiva = false;
+    mostrarLegenda();
+  }
 
   display.setCursor(4, 0);
   if (vagasComunsLivres < 10) {
