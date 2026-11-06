@@ -86,11 +86,25 @@ tesseract --version
 
 ## Passo 5: modelo YOLO de placas
 
-O professor treinou um modelo próprio com placas brasileiras, mas ele só sai na Aula 17 (Práticas 12 e 13). Até lá, usamos um modelo público já treinado para detectar placas.
+O professor treinou um modelo próprio com placas brasileiras, mas ele só sai na Aula 17 (Práticas 12 e 13). Até lá, usamos um modelo público treinado com **placas Mercosul**:
 
-1. Procure no Hugging Face (https://huggingface.co/models) por **"license plate yolov8"** e escolha um modelo que tenha um arquivo `.pt` na aba "Files and versions".
-   - Sugestão: [MKgoud/License-Plate-Recognizer](https://huggingface.co/MKgoud/License-Plate-Recognizer), arquivo `LP-detection.pt` (YOLOv8, licença MIT). *Ainda não testamos esse modelo; se ele não detectar bem as placas do vídeo, testem outro da busca.*
-2. Baixe o `.pt` e coloque na pasta `visao/modelos/`.
+- **Repositório:** [samuelpdsv/Computer-Vision-MERCOSUL-ALPR](https://github.com/samuelpdsv/Computer-Vision-MERCOSUL-ALPR) (código MIT; imagens de treino [CC BY 4.0](https://universe.roboflow.com/samuels-workspace-8un26/placas-dec-3-classes-mercosul-a440m/dataset/1); citem a fonte no trabalho).
+- **Arquivo:** `best.pt` (YOLOv8n, 6 MB, 1 classe: `Placa_mercosul_carro`). Download direto:
+  https://github.com/samuelpdsv/Computer-Vision-MERCOSUL-ALPR/raw/main/runs/detect/Treinamento/Placas_Mercosul4/weights/best.pt
+
+Baixe o arquivo e coloque na pasta `visao/modelos/`.
+
+**Limitações:**
+- Foi treinado **só com placas Mercosul de carro** (442 imagens). Placas antigas (cinza) ou de moto talvez não sejam detectadas, então **escolham um vídeo com placa Mercosul**.
+- O autor mediu a precisão nas mesmas imagens do treino, então o desempenho real é desconhecido. **Testem no vídeo de vocês** (comando abaixo).
+
+**Testar o modelo no vídeo** (dentro de `visao/`, com o `(venv)` ativo; troque o nome do vídeo):
+
+```bash
+yolo predict model=modelos/best.pt source=videos/SEU_VIDEO.mp4 conf=0.25 save=True
+```
+
+O vídeo com as caixas desenhadas é salvo numa pasta dentro de `runs/detect/`. Se a placa ganhar uma caixa na maior parte dos frames em que aparece de perto, o modelo serve. Se não, tentem `conf=0.1` ou outro vídeo.
 
 Depois da Aula 17, é só colocar o modelo do professor nessa mesma pasta.
 

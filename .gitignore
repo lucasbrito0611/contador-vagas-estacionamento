@@ -8,6 +8,7 @@
 visao/.env
 visao/venv/
 visao/.venv/
+visao/runs/
 __pycache__/
 visao/modelos/*
 !visao/modelos/.gitkeep
