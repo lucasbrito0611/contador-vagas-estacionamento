@@ -1,17 +1,15 @@
+#include "secrets.h"
+
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
+#include <ESP32Servo.h>
   
 #include <WiFi.h>
 
-#define WLAN_SSID       "Wokwi-GUEST"
-#define WLAN_PASS       ""
-
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883  // use 8883 for SSL
-#define AIO_USERNAME    "" //colocar aqui o nome de usuario do adafruit
-#define AIO_KEY         "" //colocar aqui a chave do adafruit
 
 WiFiClient client;
 
@@ -21,18 +19,28 @@ Adafruit_MQTT_Publish vagasPub = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/fee
 
 Adafruit_MQTT_Subscribe vagaIdSub = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/estacionamento.vagas-id");
 Adafruit_MQTT_Subscribe vagaOnOffSub = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/estacionamento.vagas-onoff");
+Adafruit_MQTT_Subscribe ultimaPlacaSub = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/estacionamento.ultima-placa");
 
 Adafruit_MQTT_Publish vaga1 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/estacionamento.vaga-1");
 Adafruit_MQTT_Publish vaga2 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/estacionamento.vaga-2");
 Adafruit_MQTT_Publish vaga3 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/estacionamento.vaga-3");
 Adafruit_MQTT_Publish vaga4 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/estacionamento.vaga-4");
+Adafruit_MQTT_Publish cancelaPub = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/estacionamento.cancela");
 
 LiquidCrystal_I2C display(0x27, 16, 2);
+Servo cancelaServo;
+
+#define CANCELA_SERVO_PIN 2
 
 #define numVagasComuns 2
 #define numVagasIdoso 1
 #define numVagasPcd 1
 #define NUM_VAGAS 4
+
+#define CANCELA_FECHADA 0
+#define CANCELA_ABERTA 90
+
+#define TEMPO_CANCELA_ABERTA 10000UL
 
 #define COR_VERMELHA 0
 #define COR_VERDE 1
@@ -43,6 +51,14 @@ int idVagaRecebido = -1;
 
 int contadorPublicado = -1;
 int statusPublicado[NUM_VAGAS] = {-1, -1, -1, -1};
+int cancelaPublicado = -1;
+
+int vagasLivres = NUM_VAGAS;
+bool cancelaAberta = false;
+unsigned long cancelaFechaEm = 0;
+
+bool mensagemCancelaAtiva = false;
+unsigned long mensagemCancelaAte = 0;
 
 const int ledsVagas[NUM_VAGAS][3] = {
   {13, 12, 14},
@@ -150,6 +166,72 @@ void vagaOnOffCallback(char *data, uint16_t len) {
   }
 }
 
+void publicarEstadoCancela(bool forcar = false) {
+  int estadoAtual = cancelaAberta ? 1 : 0;
+  if (!forcar && cancelaPublicado == estadoAtual) {
+    return;
+  }
+
+  if (cancelaPub.publish(estadoAtual ? "1" : "0")) {
+    cancelaPublicado = estadoAtual;
+  } else {
+    Serial.println("Falha ao publicar estado da cancela");
+  }
+}
+
+bool abrirCancela() {
+  if (!cancelaServo.attached()) {
+    return false;
+  }
+
+  cancelaServo.write(CANCELA_ABERTA);
+  cancelaAberta = true;
+  cancelaFechaEm = millis() + TEMPO_CANCELA_ABERTA;
+  Serial.println("Cancela aberta; será fechada em 10 segundos");
+  publicarEstadoCancela();
+  return true;
+}
+
+void mostrarMensagemCancela(const char *linha1, const char *linha2) {
+  display.clear();
+  display.setCursor(0, 0);
+  display.print(linha1);
+  display.setCursor(0, 1);
+  display.print(linha2);
+  mensagemCancelaAtiva = true;
+  mensagemCancelaAte = millis() + TEMPO_CANCELA_ABERTA;
+}
+
+void fecharCancela() {
+  if (cancelaAberta && (long)(millis() - cancelaFechaEm) >= 0) {
+    cancelaServo.write(CANCELA_FECHADA);
+    cancelaAberta = false;
+    Serial.println("Cancela fechada");
+    publicarEstadoCancela();
+  }
+}
+
+void ultimaPlacaCallback(char *data, uint16_t len) {
+  data[len] = '\0';
+  Serial.print("Última placa recebida: ");
+  Serial.println(data);
+
+  if (vagasLivres <= 0) {
+    if (cancelaAberta) {
+      cancelaServo.write(CANCELA_FECHADA);
+      cancelaAberta = false;
+      publicarEstadoCancela();
+    }
+    mostrarMensagemCancela("Lotado", "Desculpe :(");
+    Serial.println("Nenhuma vaga livre; cancela mantida fechada");
+  } else if (abrirCancela()) {
+    mostrarMensagemCancela(data, "Bem-vindo");
+  } else {
+    mostrarMensagemCancela("ERRO", "");
+    Serial.println("Erro ao abrir a cancela");
+  }
+}
+
 void publicarAlteracoes(int vagasLivres) {
   for (int i = 0; i < NUM_VAGAS; i++) {
     publicarVagaStatus(i);
@@ -203,6 +285,23 @@ void acenderLed(int vaga, int cor) {
   }
 }
 
+void mostrarLegenda() {
+  display.clear();
+  display.setCursor(0, 0);
+  display.print("  ");
+  display.write(byte(0));
+  display.print("    || ");
+  display.write(byte(1));
+  display.print("   ");
+
+  display.setCursor(0, 1);
+  display.print("  ");
+  display.write(byte(3));
+  display.print("    || ");
+  display.write(byte(2));
+  display.print("   ");
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -210,8 +309,13 @@ void setup() {
 
   vagaIdSub.setCallback(vagaIdCallback);
   vagaOnOffSub.setCallback(vagaOnOffCallback);
+  ultimaPlacaSub.setCallback(ultimaPlacaCallback);
   mqtt.subscribe(&vagaIdSub);
   mqtt.subscribe(&vagaOnOffSub);
+  mqtt.subscribe(&ultimaPlacaSub);
+
+  cancelaServo.attach(CANCELA_SERVO_PIN);
+  cancelaServo.write(CANCELA_FECHADA);
 
   display.init();
   display.backlight();
@@ -220,19 +324,7 @@ void setup() {
   display.createChar(2, simboloIdoso);
   display.createChar(3, simboloPcd);
 
-  display.setCursor(0, 0);
-  display.print("  ");
-  display.write(byte(0));
-  display.print("    || ");
-  display.write(byte(1));
-  display.print("   ");
-  
-  display.setCursor(0, 1);
-  display.print("  ");
-  display.write(byte(3));
-  display.print("    || ");
-  display.write(byte(2));
-  display.print("   ");
+  mostrarLegenda();
 
   for (int i = 0; i < NUM_VAGAS; i++) {
     pinMode(trig_vagas[i], OUTPUT);
@@ -254,6 +346,7 @@ void loop() {
         statusPublicado[i] = -1;
       }
       contadorPublicado = -1;
+      cancelaPublicado = -1;
     }
 
     if (mqtt.connected()) {
@@ -264,6 +357,7 @@ void loop() {
           statusPublicado[i] = -1;
         }
         contadorPublicado = -1;
+        cancelaPublicado = -1;
       }
     }
   } else {
@@ -271,6 +365,7 @@ void loop() {
       statusPublicado[i] = -1;
     }
     contadorPublicado = -1;
+    cancelaPublicado = -1;
     Serial.println("WiFi offline; waiting for connection...");
     delay(1000);
   }
@@ -323,10 +418,21 @@ void loop() {
   int vagasIdosoLivres = numVagasIdoso - vagasIdosoOcupadas;
   int vagasPcdLivres = numVagasPcd - vagasPcdOcupadas;
   int vagasOcupadas = vagasComunsOcupadas + vagasIdosoOcupadas + vagasPcdOcupadas;
-  int vagasLivres = vagasComunsLivres + vagasIdosoLivres + vagasPcdLivres;
+  vagasLivres = vagasComunsLivres + vagasIdosoLivres + vagasPcdLivres;
 
   if (WiFi.status() == WL_CONNECTED && mqtt.connected()) {
     publicarAlteracoes(vagasLivres);
+    publicarEstadoCancela();
+  }
+  fecharCancela();
+
+  if (mensagemCancelaAtiva && (long)(millis() - mensagemCancelaAte) < 0) {
+    return;
+  }
+
+  if (mensagemCancelaAtiva) {
+    mensagemCancelaAtiva = false;
+    mostrarLegenda();
   }
 
   display.setCursor(4, 0);
