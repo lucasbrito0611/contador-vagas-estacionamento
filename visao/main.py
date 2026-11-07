@@ -25,6 +25,13 @@ except ImportError:
 # --- Configurações -----------------------------------------------------------
 PASTA = Path(__file__).resolve().parent
 VIDEO = PASTA / "videos" / "carro.mp4"
+if not VIDEO.exists():
+    videos_disponiveis = sorted(
+        caminho for extensao in ("*.mp4", "*.avi", "*.mov", "*.mkv")
+        for caminho in (PASTA / "videos").glob(extensao)
+    )
+    if videos_disponiveis:
+        VIDEO = videos_disponiveis[0]
 
 PULAR_FRAMES = 3          # processa 1 a cada 3 frames
 LARGURA_MINIMA = 80       # px; placa menor que isso é pequena demais para o OCR
@@ -76,10 +83,10 @@ def main():
                 x1, y1, x2, y2, confianca = maior_placa(placas)
                 grande = (x2 - x1) >= LARGURA_MINIMA
                 cor = (0, 255, 0) if grande else (0, 200, 255)  # verde = vai pro OCR; laranja = pequena
-                cv2.rectangle(frame, (x1, y1), (x2, y2), cor, 2)
 
                 if grande:
                     recorte = recortar(frame, x1, y1, x2, y2)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), cor, 2)
                     if SALVAR_RECORTES:
                         cv2.imwrite(str(PASTA_RECORTES / f"frame_{numero_frame}.png"), recorte)
 
@@ -106,6 +113,8 @@ def main():
                             votos.clear()
                         else:
                             status = f"Lendo: {placa} ({quantidade}/{VOTOS_NECESSARIOS} votos)"
+                else:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), cor, 2)
 
             elif numero_frame - ultimo_frame_com_placa > FRAMES_SEM_PLACA and votos:
                 votos.clear()  # carro saiu da imagem; o próximo carro começa do zero

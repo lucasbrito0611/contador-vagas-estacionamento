@@ -1,10 +1,11 @@
 import os
+from pathlib import Path
 
 from Adafruit_IO import Client
 from dotenv import load_dotenv
 
 def publicar_placa(placa: str) -> None:
-    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parent / ".env")
 
     usuario = os.getenv("ADAFRUIT_IO_USERNAME")
     chave = os.getenv("ADAFRUIT_IO_KEY")

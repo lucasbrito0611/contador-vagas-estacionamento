@@ -13,6 +13,11 @@ from pathlib import Path
 PASTA = Path(__file__).resolve().parent
 FEEDS_ESPERADOS = ["estacionamento.ultima-placa", "estacionamento.cancela"]
 TESSERACT_WINDOWS = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+TESSERACT_CANDIDATOS = (
+    TESSERACT_WINDOWS,
+    Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Tesseract-OCR" / "tesseract.exe",
+)
 
 erros = 0
 avisos = 0
@@ -74,12 +79,15 @@ pytesseract = importadas.get("pytesseract")
 if pytesseract is None:
     aviso("pulado (pytesseract não instalado)")
 else:
-    if not shutil.which("tesseract") and TESSERACT_WINDOWS.exists():
+    caminho_tesseract = shutil.which("tesseract") or next(
+        (str(caminho) for caminho in TESSERACT_CANDIDATOS if caminho.is_file()),
+        None,
+    )
+    if not shutil.which("tesseract") and caminho_tesseract:
         # Instalado no Windows, mas fora do PATH: dá para apontar direto no código.
-        pytesseract.pytesseract.tesseract_cmd = str(TESSERACT_WINDOWS)
+        pytesseract.pytesseract.tesseract_cmd = caminho_tesseract
         aviso("Tesseract encontrado, mas fora do PATH",
-              f"adicione ao PATH (README, passo 4) ou use no código: "
-              f"pytesseract.pytesseract.tesseract_cmd = r\"{TESSERACT_WINDOWS}\"")
+              f"adicione ao PATH (README, passo 4) ou use o caminho encontrado: {caminho_tesseract}")
     try:
         ok(f"Tesseract {pytesseract.get_tesseract_version()}")
         cv2 = importadas.get("cv2")
