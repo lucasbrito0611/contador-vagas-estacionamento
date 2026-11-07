@@ -85,7 +85,7 @@ def main():
                 cor = (0, 255, 0) if grande else (0, 200, 255)  # verde = vai pro OCR; laranja = pequena
 
                 if grande:
-                    recorte = recortar(frame, x1, y1, x2, y2)
+                    recorte = recortar(frame, x1, y1, x2, y2).copy()  # cópia: a caixa desenhada depois não entra no recorte
                     cv2.rectangle(frame, (x1, y1), (x2, y2), cor, 2)
                     if SALVAR_RECORTES:
                         cv2.imwrite(str(PASTA_RECORTES / f"frame_{numero_frame}.png"), recorte)
