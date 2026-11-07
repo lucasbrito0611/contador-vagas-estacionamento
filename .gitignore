@@ -15,3 +15,5 @@ visao/modelos/*
 !visao/modelos/.gitkeep
 visao/videos/*
 !visao/videos/.gitkeep
+
+/runs
